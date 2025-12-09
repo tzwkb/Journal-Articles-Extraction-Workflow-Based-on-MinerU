@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="{% if language == 'zh' %}zh-CN{% else %}en{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Times New Roman", "SimSun", serif;
+            font-size: 12pt;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .page {
+            page-break-after: always;
+            padding: 3cm 2cm;  /* 增加上下边距为页眉页脚留空间 */
+            min-height: 29.7cm;
+            width: 21cm;
+            margin: 0 auto;
+            background: white;
+            position: relative;
+        }
+
+        /* 页面内容区域 - 避免与页眉页脚重叠 */
+        .page-content {
+            min-height: 23.7cm;  /* 29.7cm - 3cm(上) - 3cm(下) */
+        }
+
+        /* 页眉 - 固定在页面顶部 */
+        .header {
+            position: absolute;
+            top: 1cm;
+            left: 2cm;
+            right: 2cm;
+            color: #666;
+            font-size: 0.85em;
+            font-style: italic;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 8px;
+        }
+
+        /* 页脚 - 固定在页面底部 */
+        .footer {
+            position: absolute;
+            bottom: 1cm;
+            left: 2cm;
+            right: 2cm;
+            color: #666;
+            font-size: 0.85em;
+            font-style: italic;
+            border-top: 1px solid #ddd;
+            padding-top: 8px;
+            text-align: center;
+        }
+
+        /* 页码样式 - 独立显示在右下角 */
+        .page-number {
+            position: absolute;
+            bottom: 0.5cm;
+            right: 2cm;
+            color: #666;
+            font-size: 0.9em;
+            font-weight: normal;
+        }
+
+        /* 文本段落 */
+        .text {
+            margin: 15px 0;
+            text-align: justify;
+        }
+
+        /* 标题级别 */
+        h1, h2, h3, h4 {
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        h1 {
+            font-size: 1.8em;
+            border-bottom: 2px solid #333;
+            padding-bottom: 5px;
+        }
+
+        h2 {
+            font-size: 1.5em;
+        }
+
+        h3 {
+            font-size: 1.3em;
+        }
+
+        h4 {
+            font-size: 1.1em;
+        }
+
+        /* 图片 */
+        .image {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .image img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            padding: 5px;
+        }
+
+        .image-caption {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #666;
+            font-style: italic;
+        }
+
+        /* 表格 */
+        .table-container {
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+
+        table th, table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        table th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+        }
+
+        /* 打印样式 */
+        @media print {
+            .page {
+                margin: 0;
+                padding: 3cm 2cm;
+            }
+
+            .header {
+                top: 0.8cm;
+                font-size: 9pt;
+            }
+
+            .footer {
+                bottom: 0.8cm;
+                font-size: 9pt;
+            }
+
+            .page-number {
+                bottom: 0.5cm;
+                font-size: 9pt;
+            }
+
+            /* 使用CSS计数器自动生成页码 */
+            @page {
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+{% for page_idx, items in pages.items() %}
+    <div class="page">
+        {% for item in items %}
+            {% if item.type == 'header' %}
+                <div class="header">{{ item.text }}</div>
+
+            {% elif item.type == 'text' %}
+                {% set text_content = item.text_zh if language == 'zh' else item.text %}
+                {% if item.text_level == 1 %}
+                    <h1 class="text">{{ text_content }}</h1>
+                {% elif item.text_level == 2 %}
+                    <h2 class="text">{{ text_content }}</h2>
+                {% elif item.text_level == 3 %}
+                    <h3 class="text">{{ text_content }}</h3>
+                {% elif item.text_level == 4 %}
+                    <h4 class="text">{{ text_content }}</h4>
+                {% else %}
+                    <p class="text">{{ text_content }}</p>
+                {% endif %}
+
+            {% elif item.type == 'image' %}
+                <div class="image">
+                    {% if item.img_path %}
+                        <img src="{{ item.img_path }}" alt="Image">
+                    {% endif %}
+                    {% if item.image_caption %}
+                        {% set caption = item.caption_zh if language == 'zh' else item.image_caption|join(' ') %}
+                        <p class="image-caption">{{ caption }}</p>
+                    {% endif %}
+                </div>
+
+            {% elif item.type == 'table' %}
+                <div class="table-container">
+                    {{ item.table_body|safe }}
+                </div>
+
+            {% elif item.type == 'footer' %}
+                <div class="footer">{{ item.text }}</div>
+
+            {% elif item.type == 'page_number' %}
+                <!-- 页码单独显示在右下角 -->
+                <div class="page-number">{{ item.text }}</div>
+            {% endif %}
+        {% endfor %}
+    </div>
+{% endfor %}
+</body>
+</html>

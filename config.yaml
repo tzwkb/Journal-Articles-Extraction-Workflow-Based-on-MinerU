@@ -1,0 +1,63 @@
+# MinerU文档翻译工具 - 配置文件
+
+# API配置
+api:
+  # MinerU API Token（必填）
+  # 访问 https://mineru.net 获取
+  mineru_token: "eyJ0eXBlIjoiSldUIiwiYWxnIjoiSFM1MTIifQ.eyJqdGkiOiIxOTMwMDU4NyIsInJvbCI6IlJPTEVfUkVHSVNURVIiLCJpc3MiOiJPcGVuWExhYiIsImlhdCI6MTc2NTE4Mjg1MywiY2xpZW50SWQiOiJsa3pkeDU3bnZ5MjJqa3BxOXgydyIsInBob25lIjoiIiwib3BlbklkIjpudWxsLCJ1dWlkIjoiZGM3MDAzYTQtOTgzMi00NjVhLWEzOGYtM2NiNmE4MjU5ZjgxIiwiZW1haWwiOiIiLCJleHAiOjE3NjYzOTI0NTN9.wem08J7xwJ5fU7TWAIl2viQBB9z8OQPx57VrdCCgDTJWUZdb6EF5vkrJeHJJByaT8ckk_pAh7wZNY-Jy2Hnp9A"
+
+  # 大纲生成 API 配置（Vision API）
+  outline_api_key: "sk-mQVaSBa9k2hu3iNTMziOTNwOPYqDu73EC77QwA5X0uz8R4cp"
+  outline_api_base_url: "https://liangjiewis.com/v1"
+  outline_api_model: "gemini-2.5-flash"
+
+  # 翻译 API 配置（OpenAI-compatible）
+  translation_api_key: "sk-mQVaSBa9k2hu3iNTMziOTNwOPYqDu73EC77QwA5X0uz8R4cp"
+  translation_api_base_url: "https://liangjiewis.com/v1"
+  translation_api_model: "gemini-2.5-flash"
+
+  # API调用参数（两个API共用）
+  temperature: 0.3
+  max_tokens: 65536
+  timeout: 120
+
+# 并发控制配置
+concurrency:
+  # 多文件并发数（同时处理多少个PDF文件）
+  max_files: 10
+
+  # 翻译并发控制（自适应速率限制）
+  initial_translation_workers: 20    # 初始翻译并发数
+  max_translation_workers: 100       # 最大翻译并发数
+  min_translation_workers: 1         # 最小翻译并发数（遇到429错误时的保底值）
+  rate_limit_backoff: 0.5            # 遇到429错误时的缩减系数
+  rate_limit_increase: 1.2           # 成功时的增长系数
+  success_threshold: 0.95            # 成功率阈值（超过此值才增加并发）
+  increase_interval: 30              # 持续成功多少秒后尝试增加并发
+
+# 路径配置
+paths:
+  # 输入基础目录
+  input_base: "input/"
+
+  # 输出基础目录
+  output_base: "output/"
+
+  # 术语库文件夹
+  terminology_folder: "terminology/"
+
+# 输出格式配置
+output:
+  # 生成的输出格式列表
+  # 可选: html, pdf, docx
+  formats:
+    - html
+    - pdf
+    - docx
+
+  # 输出分类文件夹名称（大写）
+  mineru_folder: "MinerU"       # MinerU解析结果
+  html_folder: "HTML"           # HTML输出
+  pdf_folder: "PDF"             # PDF输出
+  docx_folder: "DOCX"           # DOCX输出
+  cache_folder: "cache"         # 缓存文件夹
