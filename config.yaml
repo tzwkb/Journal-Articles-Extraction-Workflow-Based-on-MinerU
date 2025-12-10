@@ -25,6 +25,31 @@ api:
   max_tokens: 65536
   timeout: 180  # API调用超时时间（秒），降低到180避免长时间挂起
 
+# 重试策略配置
+retry:
+  # MinerU API重试配置
+  mineru_max_retries: 30              # MinerU上传/下载的最大重试次数
+
+  # 翻译API重试配置
+  translation_max_retries: 30         # 翻译API的最大重试次数
+  translation_initial_delay: 1.0     # 初始延迟（秒）
+  translation_max_delay: 30.0        # 最大延迟（秒）
+  translation_exponential_base: 2.0  # 指数退避基数
+
+  # 大纲生成API重试配置
+  outline_max_retries: 30             # 大纲生成API的最大重试次数
+  outline_initial_delay: 3.0         # 初始延迟（秒）
+  outline_max_delay: 30.0            # 最大延迟（秒）
+  outline_exponential_base: 2.0      # 指数退避基数
+
+  # 重试条件开关（适用于翻译和大纲API）
+  retry_on_dns_error: true           # DNS解析错误时重试
+  retry_on_connection_error: true    # 连接错误时重试
+  retry_on_timeout: true             # 超时错误时重试
+  retry_on_5xx: true                 # 5xx服务器错误时重试
+  retry_on_429: true                 # 429限流错误时重试（大纲API）
+  retry_on_429_translation: false    # 429限流错误时重试（翻译API - 由rate_limiter处理）
+
 # 并发控制配置
 concurrency:
   # 多文件并发数（同时处理多少个PDF文件）

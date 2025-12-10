@@ -281,17 +281,18 @@ class OutlineGenerator:
         self.debugger.log_request(api_url, headers, payload, pdf_data)
         # ===== 调试模式结束 =====
 
-        # 配置重试策略
+        # 配置重试策略（从config读取）
+        retry_config_dict = self.config.get('retry', {})
         retry_config = RetryConfig(
-            max_retries=3,
-            initial_delay=3.0,
-            max_delay=30.0,
-            exponential_base=2.0,
-            retry_on_dns_error=True,
-            retry_on_connection_error=True,
-            retry_on_timeout=True,
-            retry_on_5xx=True,
-            retry_on_429=True
+            max_retries=retry_config_dict.get('outline_max_retries', 3),
+            initial_delay=retry_config_dict.get('outline_initial_delay', 3.0),
+            max_delay=retry_config_dict.get('outline_max_delay', 30.0),
+            exponential_base=retry_config_dict.get('outline_exponential_base', 2.0),
+            retry_on_dns_error=retry_config_dict.get('retry_on_dns_error', True),
+            retry_on_connection_error=retry_config_dict.get('retry_on_connection_error', True),
+            retry_on_timeout=retry_config_dict.get('retry_on_timeout', True),
+            retry_on_5xx=retry_config_dict.get('retry_on_5xx', True),
+            retry_on_429=retry_config_dict.get('retry_on_429', True)
         )
 
         retry_handler = APIRetryHandler(retry_config, self.logger)

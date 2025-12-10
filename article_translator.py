@@ -156,17 +156,18 @@ class ArticleTranslator:
         )
 
         # 初始化重试处理器
+        retry_config = self.config.get('retry', {})
         self.retry_handler = APIRetryHandler(
             config=RetryConfig(
-                max_retries=3,              # 翻译API最多重试3次（避免过长等待）
-                initial_delay=1.0,          # 初始延迟1秒
-                max_delay=30.0,             # 最大延迟30秒
-                exponential_base=2.0,       # 指数基数2
-                retry_on_dns_error=True,
-                retry_on_connection_error=True,
-                retry_on_timeout=True,
-                retry_on_5xx=True,
-                retry_on_429=False          # 429由rate_limiter处理，不在这里重试
+                max_retries=retry_config.get('translation_max_retries', 3),
+                initial_delay=retry_config.get('translation_initial_delay', 1.0),
+                max_delay=retry_config.get('translation_max_delay', 30.0),
+                exponential_base=retry_config.get('translation_exponential_base', 2.0),
+                retry_on_dns_error=retry_config.get('retry_on_dns_error', True),
+                retry_on_connection_error=retry_config.get('retry_on_connection_error', True),
+                retry_on_timeout=retry_config.get('retry_on_timeout', True),
+                retry_on_5xx=retry_config.get('retry_on_5xx', True),
+                retry_on_429=retry_config.get('retry_on_429_translation', False)  # 429由rate_limiter处理
             ),
             logger=None  # 翻译器通常没有logger，使用print
         )
@@ -414,6 +415,22 @@ class ArticleTranslator:
             if context.get('keywords'):
                 keywords = ', '.join(context['keywords'])
                 prompt_parts.append(f"关键词: {keywords}")
+
+            # 添加上下文窗口（前后文）
+            if context.get('prev_text') or context.get('next_text'):
+                prompt_parts.append("")
+                prompt_parts.append("【上下文参考】")
+                prompt_parts.append("注意：如果当前段落语义不完整或是句子片段，请参考上下文理解完整含义。")
+
+                if context.get('prev_text'):
+                    prev = context['prev_text'].strip()
+                    if prev:
+                        prompt_parts.append(f"上文末尾: ...{prev}")
+
+                if context.get('next_text'):
+                    next_text = context['next_text'].strip()
+                    if next_text:
+                        prompt_parts.append(f"下文开头: {next_text}...")
 
         # 添加待翻译文本
         prompt_parts.append("")

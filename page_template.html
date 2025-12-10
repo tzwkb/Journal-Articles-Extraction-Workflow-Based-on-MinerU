@@ -29,18 +29,49 @@
         }
 
         /* ================================================================= */
-        /* 通用文档样式优化：主次清晰，阅读有序 */
+        /* CSS变量定义 - 现代配色方案 */
+        /* ================================================================= */
+        :root {
+            /* 主色调 - 学术蓝 */
+            --primary: #1e40af;
+            --primary-light: #3b82f6;
+            --accent: #0ea5e9;
+
+            /* 文字色 */
+            --text-dark: #1f2937;
+            --text-normal: #374151;
+            --text-muted: #6b7280;
+            --text-light: #9ca3af;
+
+            /* 背景色 */
+            --bg-page: #f8fafc;
+            --bg-content: #ffffff;
+            --bg-code: #f1f5f9;
+
+            /* 边框色 */
+            --border-light: #e5e7eb;
+            --border-normal: #d1d5db;
+        }
+
+        /* ================================================================= */
+        /* 通用文档样式优化：现代化字体与配色 */
         /* ================================================================= */
         body {
-            font-family: "Times New Roman", "SimSun", serif;
+            /* 现代化字体栈：英文Georgia + 中文微软雅黑 */
+            font-family:
+                "Georgia", "Cambria", "Palatino Linotype",
+                "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB",
+                "STSong", "SimSun",
+                serif;
             /* 确保正文基础字号为 16px (1em)，这是最佳阅读尺寸 */
             font-size: 1.0em;
             /* 增加行高，减少文字拥挤感 */
-            line-height: 1.65;
-            color: #333;
-            background: #f5f5f5;
-            /* 调整最大宽度，避免单行文字过长，提高阅读效率 */
-            max-width: 38em;
+            line-height: 1.7;
+            color: var(--text-normal);
+            background: var(--bg-page);
+            /* 启用字体平滑 */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         /* ================================================================= */
@@ -54,8 +85,8 @@
             min-height: 29.7cm;
             margin: 1cm auto;
             padding: 0 2cm;
-            background: white;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            background: var(--bg-content);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             position: relative;
             display: flex;
             flex-direction: column;
@@ -82,21 +113,22 @@
         .footer-container {
             min-height: 2cm;
             padding: 0.5cm 2cm 0.8cm 2cm;
-            border-top: 1px solid #ddd;
+            border-top: 1px solid var(--border-light);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-top: auto;  /* 确保始终在底部 */
         }
 
         .footer {
-            color: #666;
+            color: var(--text-muted);
             font-size: 10pt;
             font-style: italic;
             flex: 1;
         }
 
         .page-number {
-            color: #666;
+            color: var(--text-muted);
             font-size: 10pt;
             margin-left: 1cm;
             white-space: nowrap;
@@ -104,8 +136,8 @@
 
         /* 段落样式 */
         p, .text {
-            /* 适当增加段落间距 */
-            margin: 1em 0;
+            /* 增加段落间距，提升呼吸感 */
+            margin: 1.3em 0;
             text-align: justify;
         }
 
@@ -120,31 +152,36 @@
             font-weight: bold;
         }
 
-        /* H1: 刊物/文件最高标题（特粗、最大） */
+        /* H1: 刊物/文件最高标题（优化尺寸，添加主色调） */
         h1 {
-            font-size: 2.2em;
+            font-size: 1.8em;  /* 从2.2em降低，避免过大 */
             font-weight: 900;      /* 最粗 */
             margin-top: 2.0em;     /* 顶部间距最大 */
             margin-bottom: 0.6em;
             text-align: center;    /* 居中常用于最高级标题 */
+            color: var(--primary); /* 学术蓝主色调 */
+            border-bottom: 3px solid var(--primary-light);
+            padding-bottom: 0.3em;
         }
 
-        /* H2: 文章主标题/主要章节 (粗体、较大) */
+        /* H2: 文章主标题/主要章节 (添加主色调) */
         h2 {
             font-size: 1.75em;
             font-weight: 700;      /* 粗体 */
             margin-top: 1.8em;
             margin-bottom: 0.5em;
-            border-bottom: 1px solid #ccc; /* 增加底线以强调章节划分 */
+            color: var(--primary); /* 主色调 */
+            border-bottom: 2px solid var(--border-normal);
             padding-bottom: 0.2em;
         }
 
-        /* H3: 小节标题 (半粗体、适中) */
+        /* H3: 小节标题 */
         h3 {
             font-size: 1.4em;
             font-weight: 600;      /* 半粗体 */
             margin-top: 1.5em;
             margin-bottom: 0.4em;
+            color: var(--text-dark);
         }
 
         /* H4: 次级小节标题 (中等粗细、略大于正文) */
@@ -188,10 +225,10 @@
             height: auto;
             display: block;
             margin: 1.5em auto; /* 图片上下间距略大 */
-            border: 1px solid #ddd;
+            border: none; /* 移除边框 */
             border-radius: 4px; /* 柔化图片边缘 */
-            padding: 5px;
-            background: white;
+            padding: 0; /* 移除内边距 */
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* 现代阴影效果 */
         }
 
         .image-caption {
@@ -212,20 +249,26 @@
             width: 100%;
             border-collapse: collapse;
             font-size: 0.9em;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
         }
 
         table th, table td {
-            border: 1px solid #ddd;
-            padding: 8px;
+            border: 1px solid var(--border-light);
+            padding: 10px 12px; /* 增加内边距 */
             text-align: left;
         }
 
         table th {
-            background-color: #f5f5f5;
-            font-weight: bold;
+            background-color: var(--bg-code); /* 使用变量 */
+            font-weight: 600;
+            color: var(--text-dark);
         }
 
-        /* 打印样式 - 允许内容跨页，页眉在首页顶部，页脚在末页底部 */
+        table tr:hover {
+            background-color: rgba(59, 130, 246, 0.05); /* 淡蓝色悬停效果 */
+        }
+
+        /* 打印样式 - 优化PDF生成效果 */
         @media print {
             body {
                 background: white;
@@ -238,6 +281,9 @@
                 page-break-after: always;
                 /* 允许内容在源PDF页内部跨打印页 */
                 min-height: 29.7cm;
+                /* 确保flexbox布局生效 */
+                display: flex;
+                flex-direction: column;
             }
 
             .header {
@@ -250,6 +296,7 @@
             .page-content {
                 padding: 1cm 2cm;
                 /* 内容允许自然流动跨页 */
+                flex: 1; /* 确保内容区域占据所有可用空间 */
             }
 
             .footer-container {
@@ -257,11 +304,18 @@
                 /* 避免页脚跨页断裂 */
                 page-break-inside: avoid;
                 page-break-before: avoid;
+                /* 确保页脚始终在底部 */
+                margin-top: auto;
             }
 
             @page {
                 margin: 0;
                 size: A4;
+            }
+
+            /* 打印时移除表格悬停效果 */
+            table tr:hover {
+                background-color: transparent;
             }
         }
     </style>

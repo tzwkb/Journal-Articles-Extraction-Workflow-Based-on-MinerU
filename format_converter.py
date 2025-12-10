@@ -177,6 +177,29 @@ class FormatConverter:
             
             self.logger.success(f"  ✓ DOCX已生成: {output_path.name}")
 
+            # 清理Pandoc产生的散落图片文件
+            docx_dir = output_path.parent
+            cleaned_count = 0
+
+            # 清理 .jpg 文件
+            for img_file in docx_dir.glob("*.jpg"):
+                try:
+                    img_file.unlink()
+                    cleaned_count += 1
+                except Exception as e:
+                    self.logger.warning(f"  ⚠ 无法删除图片: {img_file.name} - {e}")
+
+            # 清理 .png 文件
+            for img_file in docx_dir.glob("*.png"):
+                try:
+                    img_file.unlink()
+                    cleaned_count += 1
+                except Exception as e:
+                    self.logger.warning(f"  ⚠ 无法删除图片: {img_file.name} - {e}")
+
+            if cleaned_count > 0:
+                self.logger.info(f"  ✓ 已清理 {cleaned_count} 个DOCX散落图片")
+
         except subprocess.TimeoutExpired:
             self.logger.error(f"DOCX生成超时（120秒）")
         except subprocess.CalledProcessError as e:

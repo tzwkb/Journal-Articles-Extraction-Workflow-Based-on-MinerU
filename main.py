@@ -13,7 +13,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from jinja2 import Template
 import shutil
 
-from mineru_client import MinerUClient, FileTask
+from mineru_client import MinerUClient, FileTask, TaskState
 from mineru_parser import MinerUParser
 from article_translator import ArticleTranslator
 from logger import Logger
@@ -53,7 +53,7 @@ class DocumentProcessor:
         self.mineru = MinerUClient(
             api_token=self.config['api']['mineru_token'],
             verify_ssl=False,
-            max_retries=5
+            max_retries=self.config['retry']['mineru_max_retries']
         )
 
         # 初始化解析器（修改输出目录到output/MinerU）
@@ -354,6 +354,21 @@ class DocumentProcessor:
         # 下载结果到指定位置
         downloaded = self.mineru.download_all_results(results, str(expected_zip.parent))
 
+        # 检查是否成功下载
+        if not downloaded:
+            error_msg = "MinerU解析失败，没有可下载的结果。"
+            # 检查results中的失败原因
+            for result in results:
+                if result.state == TaskState.FAILED:
+                    reason = result.err_msg or '未知原因'
+                    error_msg += f"\n失败原因: {reason}"
+                    error_msg += "\n\n可能的解决方案:"
+                    error_msg += "\n1. 检查PDF文件是否损坏或加密"
+                    error_msg += "\n2. 尝试重新下载或转换PDF文件"
+                    error_msg += "\n3. 检查PDF文件大小是否超过限制"
+            self.logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
         # 获取下载的zip文件路径
         zip_path = list(downloaded.values())[0]
 
@@ -413,11 +428,28 @@ class DocumentProcessor:
         tasks = []
         for page_idx in sorted(pages.keys()):
             items = pages[page_idx]
-            context = self._get_chapter_context(page_idx, outline)
 
-            for item in items:
+            # 极简合并：处理连字符断词和跨列分割
+            merged_items = self._merge_split_texts(items)
+
+            # 获取章节上下文
+            chapter_context = self._get_chapter_context(page_idx, outline)
+
+            for idx, item in enumerate(merged_items):
                 if item['type'] in ['header', 'footer', 'page_number']:
                     continue
+
+                # 添加上下文窗口（前后100字符）
+                context = chapter_context.copy()
+                if idx > 0 and merged_items[idx - 1].get('text'):
+                    context['prev_text'] = merged_items[idx - 1]['text'][-100:]
+                else:
+                    context['prev_text'] = ''
+
+                if idx < len(merged_items) - 1 and merged_items[idx + 1].get('text'):
+                    context['next_text'] = merged_items[idx + 1]['text'][:100]
+                else:
+                    context['next_text'] = ''
 
                 if item['type'] == 'text' and item.get('text'):
                     tasks.append((item, 'text_zh', item['text'], context))
@@ -434,7 +466,35 @@ class DocumentProcessor:
 
         # 赋值翻译结果
         for i, (item, field_name, _, _) in enumerate(tasks):
-            item[field_name] = translations[i]
+            translated_text = translations[i]
+
+            # 检查是否是合并项
+            if item.get('merged') and 'original_items' in item:
+                # 拆分译文回原始TEXT块
+                originals = item['original_items']
+
+                # 按原始文本长度比例拆分
+                len1 = len(originals[0]['text'])
+                len2 = len(originals[1]['text'])
+                total_len = len1 + len2
+
+                if total_len > 0:
+                    ratio = len1 / total_len
+                    split_point = int(len(translated_text) * ratio)
+
+                    # 分配译文
+                    originals[0][field_name] = translated_text[:split_point].strip()
+                    originals[1][field_name] = translated_text[split_point:].strip()
+
+                    # 保留合并信息（用于调试）
+                    originals[0]['_merged_from'] = item['text']
+                    originals[1]['_merged_from'] = item['text']
+                else:
+                    # 异常情况：原始文本长度为0，直接赋值给第一个
+                    originals[0][field_name] = translated_text
+            else:
+                # 未合并的项，直接赋值
+                item[field_name] = translated_text
 
             if (i + 1) % max(1, len(tasks) // 10) == 0:
                 progress = (i + 1) * 100 // len(tasks)
@@ -509,6 +569,74 @@ class DocumentProcessor:
             self.logger.success(f"已复制 {copied_count} 张图片")
         else:
             self.logger.warning("未找到任何图片文件")
+
+    def _merge_split_texts(self, items: list) -> list:
+        """
+        极简合并 - 只处理明确的TEXT分割
+
+        规则1: 连字符断词 (如 "frig-" + "ates")
+        规则2: 跨列无标点 (如左列 "...limestone" + 右列 "V pedestal")
+        规则3: 同列分割 (如 "...Pound" + "force was...")
+
+        Args:
+            items: 单页的内容项列表
+
+        Returns:
+            合并后的内容项列表（保留original_items字段）
+        """
+        merged = []
+        i = 0
+
+        while i < len(items):
+            current = items[i]
+
+            # 只处理text类型
+            if current.get('type') != 'text' or not current.get('text'):
+                merged.append(current)
+                i += 1
+                continue
+
+            # 检查是否与下一项合并
+            should_merge = False
+            if i + 1 < len(items):
+                next_item = items[i + 1]
+
+                # 下一项也必须是text
+                if next_item.get('type') == 'text' and next_item.get('text'):
+                    # 同一页
+                    if current.get('page_idx') == next_item.get('page_idx'):
+                        text1 = current['text'].strip()
+                        bbox1 = current.get('bbox', [0, 0, 0, 0])
+                        bbox2 = next_item.get('bbox', [0, 0, 0, 0])
+
+                        # 规则1: 连字符结尾 (100%确定是断词)
+                        if text1.endswith('-'):
+                            should_merge = True
+                        # 规则2: 跨列 + 无句末标点
+                        elif bbox2[0] - bbox1[2] > 80:  # x间距 > 80像素（跨列）
+                            if text1 and text1[-1] not in '.!?。！？':
+                                should_merge = True
+                        # 规则3: 同列内分割 - text1无标点结尾 + text2小写开头
+                        else:
+                            text2 = next_item['text'].strip()
+                            # text1不以标点结尾 且 text2以小写字母开头
+                            if (text1 and text1[-1] not in '.!?。！？,;:' and
+                                text2 and text2[0].islower()):
+                                should_merge = True
+
+            if should_merge:
+                # 合并两个TEXT块
+                merged_item = current.copy()
+                merged_item['text'] = current['text'].rstrip() + ' ' + next_item['text'].lstrip()
+                merged_item['original_items'] = [current, next_item]
+                merged_item['merged'] = True
+                merged.append(merged_item)
+                i += 2  # 跳过下一项
+            else:
+                merged.append(current)
+                i += 1
+
+        return merged
 
     def _get_chapter_context(self, page_idx: int, outline: dict) -> dict:
         """获取页面对应的章节上下文"""
