@@ -30,8 +30,7 @@ class OutlineGenerator:
 
         # 从配置文件读取 PDF 处理参数
         pdf_config = config.get('pdf_processing', {})
-        self.max_pdf_size_mb = pdf_config.get('max_pdf_size_mb', 8)
-        self.max_pages_for_outline = pdf_config.get('max_pages_for_outline', 12)
+        self.max_pdf_size_mb = pdf_config.get('max_pdf_size_mb', 20)
 
         # 读取调试模式配置
         self.debug_mode = config.get('debug', {}).get('enabled', False)
@@ -92,26 +91,50 @@ class OutlineGenerator:
             (临时PDF文件路径, 使用的页数)
         """
         pdf_path_obj = Path(pdf_path)
-        file_size_mb = pdf_path_obj.stat().st_size / (1024 * 1024)
 
-        self.logger.info(f"PDF 文件大小: {file_size_mb:.2f} MB")
+        # 先读取完整PDF并转为base64，检查编码后的大小
+        with open(pdf_path, 'rb') as f:
+            pdf_bytes = f.read()
 
-        # 如果文件小于限制，直接返回原文件
-        if file_size_mb <= self.max_pdf_size_mb:
-            self.logger.info(f"✓ 文件大小合适，使用完整 PDF")
+        pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
+        base64_size_mb = len(pdf_base64) / (1024 * 1024)
+
+        original_size_mb = len(pdf_bytes) / (1024 * 1024)
+        self.logger.info(f"PDF 文件大小: {original_size_mb:.2f} MB")
+        self.logger.info(f"Base64 编码后: {base64_size_mb:.2f} MB")
+
+        # 如果 base64 大小在限制内，直接返回原文件
+        if base64_size_mb <= self.max_pdf_size_mb:
+            self.logger.info(f"✓ Base64 大小合适，使用完整 PDF")
             return str(pdf_path), -1  # -1 表示所有页
 
-        # 文件过大，只提取前 N 页
-        self.logger.warning(f"⚠ 文件过大 ({file_size_mb:.2f} MB > {self.max_pdf_size_mb} MB)")
-        self.logger.info(f"→ 自动提取前 {self.max_pages_for_outline} 页用于生成大纲...")
+        # base64 过大，需要自适应截断
+        self.logger.warning(f"⚠ Base64 过大 ({base64_size_mb:.2f} MB > {self.max_pdf_size_mb} MB)")
+        self.logger.info(f"→ 自动计算需要提取的页数以符合大小限制...")
 
         try:
             # 打开 PDF
             doc = fitz.open(pdf_path)
             total_pages = len(doc)
 
-            # 确定要提取的页数
-            pages_to_extract = min(self.max_pages_for_outline, total_pages)
+            # 估算需要的页数比例（base64大小和页数大致成正比）
+            ratio = self.max_pdf_size_mb / base64_size_mb
+            estimated_pages = max(1, int(total_pages * ratio * 0.95))  # 留5%余量
+
+            self.logger.info(f"总页数: {total_pages}, 估算需要: {estimated_pages} 页")
+
+            # 二分查找最优页数
+            pages_to_extract = self._find_optimal_pages(
+                doc,
+                total_pages,
+                estimated_pages
+            )
+
+            if pages_to_extract >= total_pages:
+                # 如果计算出来需要全部页，直接返回原文件
+                doc.close()
+                self.logger.success(f"✓ 全部 {total_pages} 页都可使用")
+                return str(pdf_path), -1
 
             # 创建新的 PDF（只包含前 N 页）
             new_doc = fitz.open()
@@ -134,11 +157,18 @@ class OutlineGenerator:
             new_doc.close()
             doc.close()
 
-            extracted_size_mb = temp_pdf_path.stat().st_size / (1024 * 1024)
+            # 检查提取后的PDF的base64大小
+            with open(temp_pdf_path, 'rb') as f:
+                extracted_bytes = f.read()
+            extracted_base64 = base64.b64encode(extracted_bytes).decode('utf-8')
+            extracted_base64_mb = len(extracted_base64) / (1024 * 1024)
+            extracted_size_mb = len(extracted_bytes) / (1024 * 1024)
+
             self.logger.success(
-                f"✓ 已提取前 {pages_to_extract}/{total_pages} 页 "
-                f"(约 {extracted_size_mb:.2f} MB)"
+                f"✓ 已自适应提取前 {pages_to_extract}/{total_pages} 页"
             )
+            self.logger.info(f"  提取后文件: {extracted_size_mb:.2f} MB")
+            self.logger.info(f"  提取后Base64: {extracted_base64_mb:.2f} MB (目标: ≤{self.max_pdf_size_mb} MB)")
 
             return str(temp_pdf_path), pages_to_extract
 
@@ -146,6 +176,59 @@ class OutlineGenerator:
             self.logger.error(f"✗ PDF 提取失败: {e}")
             self.logger.info("→ 尝试使用完整 PDF（可能会失败）")
             return str(pdf_path), -1
+
+    def _find_optimal_pages(self, doc, total_pages: int, estimated_pages: int) -> int:
+        """
+        二分查找最优页数，使base64大小刚好在限制内
+
+        Args:
+            doc: PyMuPDF文档对象
+            total_pages: 总页数
+            estimated_pages: 估算的起始页数
+
+        Returns:
+            最优页数
+        """
+        import io
+
+        # 真正的二分查找
+        left = 1  # 最少1页
+        right = min(total_pages, estimated_pages)  # 最多估算值或总页数
+        best_pages = 1  # 至少保证1页
+
+        self.logger.info(f"  二分查找范围: {left}-{right} 页")
+
+        while left <= right:
+            mid = (left + right) // 2
+
+            # 创建临时PDF测试
+            test_doc = fitz.open()
+            for page_num in range(mid):
+                test_doc.insert_pdf(doc, from_page=page_num, to_page=page_num)
+
+            # 保存到内存并检查base64大小
+            pdf_bytes = io.BytesIO()
+            test_doc.save(pdf_bytes)
+            test_doc.close()
+
+            pdf_bytes.seek(0)
+            test_base64 = base64.b64encode(pdf_bytes.read()).decode('utf-8')
+            test_base64_mb = len(test_base64) / (1024 * 1024)
+
+            self.logger.info(f"  测试 {mid} 页: Base64 = {test_base64_mb:.2f} MB")
+
+            if test_base64_mb <= self.max_pdf_size_mb:
+                # 符合条件，记录并尝试更多页
+                best_pages = mid
+                left = mid + 1
+                self.logger.info(f"    ✓ 符合条件，尝试更多页...")
+            else:
+                # 超过限制，减少页数
+                right = mid - 1
+                self.logger.info(f"    ✗ 超过限制，减少页数...")
+
+        self.logger.info(f"  → 选定 {best_pages} 页")
+        return best_pages
 
     def generate_outline(self, pdf_path: str, output_paths: dict = None) -> dict:
         """
@@ -195,13 +278,15 @@ class OutlineGenerator:
 
 要求：
 1. 识别文档类型（research_report/journal_article/technical_document/book_chapter）
-2. 提取章节结构（标题、页码范围）
-3. 为每个章节生成简短摘要（50字内）
-4. 提取每个章节的关键词（3-5个）
+2. 生成期刊/文档概述（100-200字，包括：文档主题、发布机构、目标读者、主要内容领域）
+3. 提取章节结构（标题、页码范围）
+4. 为每个章节生成简短摘要（50字内）
+5. 提取每个章节的关键词（3-5个）
 
 输出JSON格式：
 {{
   "document_type": "research_report",
+  "journal_overview": "期刊概述（100-200字）",
   "structure": [
     {{
       "level": 1,
@@ -223,13 +308,15 @@ class OutlineGenerator:
 
 要求：
 1. 识别文档类型（research_report/journal_article/technical_document/book_chapter）
-2. 提取章节结构（标题、页码范围）
-3. 为每个章节生成简短摘要（50字内）
-4. 提取每个章节的关键词（3-5个）
+2. 生成期刊/文档概述（100-200字，包括：文档主题、发布机构、目标读者、主要内容领域）
+3. 提取章节结构（标题、页码范围）
+4. 为每个章节生成简短摘要（50字内）
+5. 提取每个章节的关键词（3-5个）
 
 输出JSON格式：
 {
   "document_type": "research_report",
+  "journal_overview": "期刊概述（100-200字）",
   "structure": [
     {
       "level": 1,
@@ -273,7 +360,7 @@ class OutlineGenerator:
             "model": self.config['api']['outline_api_model'],
             "messages": messages,
             "temperature": self.config['api']['temperature'],
-            "max_tokens": self.config['api']['max_tokens']
+            "max_tokens": self.config['api'].get('outline_max_tokens', self.config['api']['max_tokens'])
         }
 
         # ===== 调试模式：打印请求详情 =====
@@ -320,7 +407,54 @@ class OutlineGenerator:
             # 移除第一行和最后一行的代码块标记
             response_text = '\n'.join(lines[1:-1])
 
-        outline = json.loads(response_text)
+        # 尝试解析JSON，添加详细的错误处理
+        try:
+            outline = json.loads(response_text)
+        except json.JSONDecodeError as e:
+            # JSON解析失败，记录详细信息
+            self.logger.error(f"✗ 大纲JSON解析失败: {str(e)}")
+            self.logger.error(f"  错误位置: line {e.lineno}, column {e.colno}, char {e.pos}")
+
+            # 保存原始响应用于调试
+            error_log_path = self.output_base / "cache" / f"outline_error_{Path(pdf_file_path).stem}.txt"
+            error_log_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(error_log_path, 'w', encoding='utf-8') as f:
+                f.write("=== API响应内容 ===\n")
+                f.write(response_text)
+                f.write("\n\n=== 错误信息 ===\n")
+                f.write(f"错误: {str(e)}\n")
+                f.write(f"位置: line {e.lineno}, column {e.colno}, char {e.pos}\n")
+
+                # 显示出错位置的上下文
+                if e.pos is not None:
+                    lines = response_text.split('\n')
+                    if e.lineno > 0 and e.lineno <= len(lines):
+                        f.write(f"\n=== 出错行 (第{e.lineno}行) ===\n")
+                        start_line = max(0, e.lineno - 3)
+                        end_line = min(len(lines), e.lineno + 2)
+                        for i in range(start_line, end_line):
+                            marker = ">>> " if i == e.lineno - 1 else "    "
+                            f.write(f"{marker}{i+1}: {lines[i]}\n")
+
+            self.logger.error(f"  原始响应已保存到: {error_log_path}")
+            self.logger.error(f"  响应前500字符: {response_text[:500]}")
+
+            # 生成默认大纲作为fallback
+            self.logger.warning("  生成默认大纲作为后备方案")
+            outline = {
+                "title": Path(pdf_file_path).stem,
+                "structure": [
+                    {"level": 1, "title": "文档内容", "page": 1}
+                ]
+            }
+
+            # 保存默认大纲
+            outline_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(outline_path, 'w', encoding='utf-8') as f:
+                json.dump(outline, f, ensure_ascii=False, indent=2)
+
+            self.logger.warning(f"⚠ 使用默认大纲: {outline_path}")
+            return outline
 
         # 保存大纲
         outline_path.parent.mkdir(parents=True, exist_ok=True)

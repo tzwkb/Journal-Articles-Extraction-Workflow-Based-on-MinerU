@@ -93,23 +93,35 @@ class RetryConfig:
 class APIRetryHandler:
     """API重试处理器"""
 
-    def __init__(self, config: Optional[RetryConfig] = None, logger=None):
+    def __init__(self, config: Optional[RetryConfig] = None, logger=None, context_provider=None):
         """
         初始化重试处理器
 
         Args:
             config: 重试配置，如果为None则使用默认配置
             logger: 日志记录器
+            context_provider: 上下文提供函数（返回字符串，用于日志前缀）
         """
         self.config = config or RetryConfig()
         self.logger = logger
+        self.context_provider = context_provider
 
     def _log(self, level: str, message: str):
         """记录日志"""
+        # 获取上下文前缀
+        context = ""
+        if self.context_provider:
+            try:
+                context = self.context_provider() + " "
+            except:
+                pass
+
+        full_message = f"{context}{message}"
+
         if self.logger:
-            getattr(self.logger, level, self.logger.info)(message)
+            getattr(self.logger, level, self.logger.info)(full_message)
         else:
-            print(f"[{level.upper()}] {message}")
+            print(f"[{level.upper()}] {full_message}")
 
     def _calculate_delay(self, attempt: int) -> float:
         """
@@ -149,9 +161,17 @@ class APIRetryHandler:
         if isinstance(error, (ConnectionError, MaxRetryError)):
             return (self.config.retry_on_connection_error, "连接错误" if self.config.retry_on_connection_error else "连接错误（不重试）")
 
-        # 超时错误
+        # 超时错误（区分 ConnectTimeout 和 ReadTimeout）
         if isinstance(error, Timeout):
-            return (self.config.retry_on_timeout, "请求超时" if self.config.retry_on_timeout else "请求超时（不重试）")
+            error_str = str(error)
+            # ConnectTimeout: 连接建立超时，请求未到达服务器，不浪费token
+            if 'ConnectTimeout' in error_str or 'Connection to' in error_str:
+                return (self.config.retry_on_timeout, "连接超时(ConnectTimeout)")
+            # ReadTimeout: 读取响应超时，服务器可能已处理，可能浪费token ⚠️
+            elif 'ReadTimeout' in error_str or 'Read timed out' in error_str:
+                return (self.config.retry_on_timeout, "读取超时(ReadTimeout)⚠️")
+            else:
+                return (self.config.retry_on_timeout, "请求超时")
 
         # HTTP错误
         if isinstance(error, HTTPError):
@@ -171,12 +191,21 @@ class APIRetryHandler:
         if isinstance(error, RequestException):
             return True, "请求异常"
 
+        # JSON解析错误 - 可能是服务器返回格式错误，值得重试
+        if 'JSON' in str(type(error).__name__) or 'JSONDecodeError' in str(error):
+            return True, "JSON解析错误"
+
+        # KeyError - 可能是API返回结构变化，值得重试
+        if isinstance(error, KeyError):
+            return True, "响应结构错误"
+
         # 默认不重试
         return False, "未知错误"
 
     def execute_with_retry(
         self,
         func: Callable,
+        on_retry_callback: Optional[Callable[[int, str, str], None]] = None,
         *args,
         **kwargs
     ) -> Any:
@@ -185,6 +214,7 @@ class APIRetryHandler:
 
         Args:
             func: 要执行的函数
+            on_retry_callback: 重试回调函数 callback(attempt, error_type, error_detail)
             *args: 函数的位置参数
             **kwargs: 函数的关键字参数
 
@@ -215,6 +245,13 @@ class APIRetryHandler:
 
                 # 判断是否应该重试
                 should_retry, error_type = self._should_retry(e, attempt)
+
+                # 调用回调（如果有）
+                if on_retry_callback:
+                    try:
+                        on_retry_callback(attempt, error_type, str(e))
+                    except:
+                        pass
 
                 if not should_retry:
                     # 不重试，直接抛出异常

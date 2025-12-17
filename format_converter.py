@@ -26,7 +26,7 @@ class FormatConverter:
 
     def export_formats(self, original_html: str, translated_html: str, output_paths: dict = None):
         """
-        导出PDF和DOCX
+        导出PDF和DOCX（智能跳过已存在的文件）
 
         Args:
             original_html: 原文HTML
@@ -37,7 +37,7 @@ class FormatConverter:
 
         formats = self.config['output']['formats']
 
-        # 保存HTML
+        # 保存HTML（如果不存在）
         if output_paths and 'html_original' in output_paths:
             html_original_path = Path(output_paths['html_original'])
             html_translated_path = Path(output_paths['html_translated'])
@@ -47,29 +47,80 @@ class FormatConverter:
             html_original_path = html_dir / "original.html"
             html_translated_path = html_dir / "translated.html"
 
-        html_original_path.write_text(original_html, encoding='utf-8')
-        html_translated_path.write_text(translated_html, encoding='utf-8')
+        # 只在不存在时写入HTML
+        if not html_original_path.exists():
+            html_original_path.write_text(original_html, encoding='utf-8')
+        if not html_translated_path.exists():
+            html_translated_path.write_text(translated_html, encoding='utf-8')
         self.logger.success(f"HTML已生成: {html_original_path.parent}")
 
+        # PDF转换（智能跳过）
         if 'pdf' in formats:
-            self.logger.info("正在生成PDF...")
             if output_paths and 'pdf_original' in output_paths:
-                self._html_to_pdf(html_original_path, output_paths['pdf_original'])
-                self._html_to_pdf(html_translated_path, output_paths['pdf_translated'])
+                pdf_original = Path(output_paths['pdf_original'])
+                pdf_translated = Path(output_paths['pdf_translated'])
             else:
-                self._html_to_pdf(html_original_path, "original.pdf")
-                self._html_to_pdf(html_translated_path, "translated.pdf")
-            self.logger.success("PDF已生成")
+                pdf_dir = self.output_base / self.config['output']['pdf_folder']
+                pdf_dir.mkdir(parents=True, exist_ok=True)
+                pdf_original = pdf_dir / "original.pdf"
+                pdf_translated = pdf_dir / "translated.pdf"
 
-        if 'docx' in formats:
-            self.logger.info("正在生成DOCX...")
-            if output_paths and 'docx_original' in output_paths:
-                self._html_to_docx(html_original_path, output_paths['docx_original'])
-                self._html_to_docx(html_translated_path, output_paths['docx_translated'])
+            # 检查是否已存在
+            pdf_skipped = []
+            pdf_generated = []
+
+            if pdf_original.exists():
+                self.logger.info(f"PDF原文已存在，跳过: {pdf_original.name}")
+                pdf_skipped.append("原文")
             else:
-                self._html_to_docx(html_original_path, "original.docx")
-                self._html_to_docx(html_translated_path, "translated.docx")
-            self.logger.success("DOCX已生成")
+                self._html_to_pdf(html_original_path, pdf_original)
+                pdf_generated.append("原文")
+
+            if pdf_translated.exists():
+                self.logger.info(f"PDF译文已存在，跳过: {pdf_translated.name}")
+                pdf_skipped.append("译文")
+            else:
+                self._html_to_pdf(html_translated_path, pdf_translated)
+                pdf_generated.append("译文")
+
+            if pdf_generated:
+                self.logger.success(f"PDF已生成: {', '.join(pdf_generated)}")
+            if pdf_skipped:
+                self.logger.info(f"PDF已跳过: {', '.join(pdf_skipped)}")
+
+        # DOCX转换（智能跳过）
+        if 'docx' in formats:
+            if output_paths and 'docx_original' in output_paths:
+                docx_original = Path(output_paths['docx_original'])
+                docx_translated = Path(output_paths['docx_translated'])
+            else:
+                docx_dir = self.output_base / self.config['output']['docx_folder']
+                docx_dir.mkdir(parents=True, exist_ok=True)
+                docx_original = docx_dir / "original.docx"
+                docx_translated = docx_dir / "translated.docx"
+
+            # 检查是否已存在
+            docx_skipped = []
+            docx_generated = []
+
+            if docx_original.exists():
+                self.logger.info(f"DOCX原文已存在，跳过: {docx_original.name}")
+                docx_skipped.append("原文")
+            else:
+                self._html_to_docx(html_original_path, docx_original)
+                docx_generated.append("原文")
+
+            if docx_translated.exists():
+                self.logger.info(f"DOCX译文已存在，跳过: {docx_translated.name}")
+                docx_skipped.append("译文")
+            else:
+                self._html_to_docx(html_translated_path, docx_translated)
+                docx_generated.append("译文")
+
+            if docx_generated:
+                self.logger.success(f"DOCX已生成: {', '.join(docx_generated)}")
+            if docx_skipped:
+                self.logger.info(f"DOCX已跳过: {', '.join(docx_skipped)}")
 
     def _html_to_pdf(self, html_path, output_path):
         """
@@ -117,17 +168,18 @@ class FormatConverter:
                 # 额外等待，确保所有图片加载完成
                 page.wait_for_timeout(2000)
                 
-                # 生成PDF
+                # 生成PDF（横向布局，最大化内容区域）
                 self.logger.info(f"  生成PDF: {output_path}")
                 page.pdf(
                     path=str(output_path),
                     format='A4',
+                    landscape=True,  # 横向布局
                     print_background=True,
                     margin={
-                        'top': '1cm',
-                        'right': '1cm',
-                        'bottom': '1cm',
-                        'left': '1cm'
+                        'top': '0',
+                        'right': '0',
+                        'bottom': '0',
+                        'left': '0'
                     }
                 )
                 
@@ -184,16 +236,24 @@ class FormatConverter:
             # 清理 .jpg 文件
             for img_file in docx_dir.glob("*.jpg"):
                 try:
-                    img_file.unlink()
-                    cleaned_count += 1
+                    if img_file.exists():  # 先检查文件是否存在
+                        img_file.unlink()
+                        cleaned_count += 1
+                except FileNotFoundError:
+                    # 文件不存在，静默忽略（可能被其他进程删除）
+                    pass
                 except Exception as e:
                     self.logger.warning(f"  ⚠ 无法删除图片: {img_file.name} - {e}")
 
             # 清理 .png 文件
             for img_file in docx_dir.glob("*.png"):
                 try:
-                    img_file.unlink()
-                    cleaned_count += 1
+                    if img_file.exists():  # 先检查文件是否存在
+                        img_file.unlink()
+                        cleaned_count += 1
+                except FileNotFoundError:
+                    # 文件不存在，静默忽略
+                    pass
                 except Exception as e:
                     self.logger.warning(f"  ⚠ 无法删除图片: {img_file.name} - {e}")
 

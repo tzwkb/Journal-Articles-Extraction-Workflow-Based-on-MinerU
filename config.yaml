@@ -13,17 +13,21 @@ api:
   # 大纲生成 API 配置
   outline_api_key: ""
   outline_api_base_url: "https://liangjiewis.com/v1"
-  outline_api_model: "gemini-2.5-flash"
+  outline_api_model: "gemini-2.5-flash-lite"
 
   # 翻译 API 配置
   translation_api_key: ""
   translation_api_base_url: "https://liangjiewis.com/v1"
-  translation_api_model: "gemini-2.5-flash"
+  translation_api_model: "gemini-2.5-flash-lite"
 
-  # API调用参数（两个API共用）
+  # 翻译质量问题时的备用模型（更好的模型，仅在质量检查失败时临时切换）
+  fallback_translation_model: "gemini-2.5-flash"
+
+  # API调用参数
   temperature: 0.3
-  max_tokens: 65536
-  timeout: 180  # API调用超时时间（秒），降低到180避免长时间挂起
+  max_tokens: 4096           # 翻译API使用
+  outline_max_tokens: 16384  # 大纲生成API使用（需要更大的tokens）
+  timeout: 600
 
 # 重试策略配置
 retry:
@@ -48,20 +52,20 @@ retry:
   retry_on_timeout: true             # 超时错误时重试
   retry_on_5xx: true                 # 5xx服务器错误时重试
   retry_on_429: true                 # 429限流错误时重试（大纲API）
-  retry_on_429_translation: false    # 429限流错误时重试（翻译API - 由rate_limiter处理）
+  retry_on_429_translation: true     # 429限流错误时重试（翻译API - rate_limiter降低并发后重试）
 
 # 并发控制配置
 concurrency:
   # 多文件并发数（同时处理多少个PDF文件）
-  max_files: 10
+  max_files: 20
 
   # 翻译并发控制（自适应速率限制）
-  initial_translation_workers: 100      # 初始翻译并发数
-  max_translation_workers: 100         # 最大翻译并发数
+  initial_translation_workers: 50      # 初始翻译并发数
+  max_translation_workers: 50         # 最大翻译并发数
   min_translation_workers: 1         # 最小翻译并发数（遇到429错误时的保底值）
   rate_limit_backoff: 0.5            # 遇到429错误时的缩减系数
-  rate_limit_increase: 1           # 成功时的增长系数
-  success_threshold: 1             # 成功率阈值
+  rate_limit_increase: 2          # 成功时的增长系数
+  success_threshold: 0.9             # 成功率阈值
   increase_interval: 30          # 持续成功多少秒后尝试增加并发
 
 # 路径配置
@@ -93,14 +97,15 @@ output:
 
 # PDF处理配置
 pdf_processing:
-  # 大纲生成时的PDF大小限制
-  max_pdf_size_mb: 20           # PDF文件超过此大小(MB)时，自动提取部分页面
-  max_pages_for_outline: 10   # 大文件提取的最大页数（用于生成大纲）
+  # 大纲生成时的PDF大小限制（base64编码后）
+  max_pdf_size_mb: 20           # Base64编码后超过此大小(MB)时，自动截断PDF
 
   # 说明：
-  # - 小于 max_pdf_size_mb 的文件会完整发送给 API
-  # - 超过限制的文件只提取前 max_pages_for_outline 页
-  # - 学术文档前几页通常包含目录，足以生成完整大纲
-  # - 如果遇到 413 错误，可以降低这两个值（例如 5MB 和 8页）
+  # - 检查的是 base64 编码后的请求体大小，不是原始 PDF 文件大小
+  # - Base64 编码会使数据增大约 33%（17MB的PDF会变成约23MB的base64）
+  # - 如果 base64 > 20MB，程序会自动计算需要提取多少页才能符合限制
+  # - 使用智能算法自适应截断，最大化保留页数
+  # - 前N页通常包含目录，足以生成完整大纲
+  # - 如果遇到 413 错误，可以降低此值（例如 15MB）
 
 

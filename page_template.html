@@ -75,16 +75,16 @@
         }
 
         /* ================================================================= */
-        /* 页面布局结构 - 允许内容自然流动跨页 */
+        /* 页面布局结构 - 横向布局，最大化内容区域 */
         /* ================================================================= */
         .page {
             /* 源PDF每一页结束后强制分页 */
             page-break-after: always;
-            width: 21cm;
+            width: 29.7cm;  /* A4横向宽度 */
             /* 最小高度保证短内容也有合适的页面高度 */
-            min-height: 29.7cm;
+            min-height: 21cm;  /* A4横向高度 */
             margin: 1cm auto;
-            padding: 0 2cm;
+            padding: 0;  /* 移除外层padding，统一由内部控制 */
             background: var(--bg-content);
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             position: relative;
@@ -94,8 +94,8 @@
 
         /* 页眉固定区域 */
         .header {
-            min-height: 2cm;
-            padding: 0.8cm 2cm 0.5cm 2cm;
+            min-height: 1.5cm;  /* 缩小页眉高度 */
+            padding: 0.6cm 1.5cm 0.4cm 1.5cm;  /* 减少左右边距 */
             border-bottom: 1px solid #ddd;
             color: #666;
             font-size: 10pt;
@@ -105,14 +105,14 @@
         /* 页面主内容区域 */
         .page-content {
             flex: 1;
-            padding: 1cm 2cm;
+            padding: 0.8cm 1.5cm;  /* 减少上下和左右边距，最大化内容区域 */
             /* 允许内容自然流动，跨越多个打印页 */
         }
 
         /* 页脚固定区域 */
         .footer-container {
-            min-height: 2cm;
-            padding: 0.5cm 2cm 0.8cm 2cm;
+            min-height: 1.5cm;  /* 缩小页脚高度 */
+            padding: 0.4cm 1.5cm 0.6cm 1.5cm;  /* 减少左右边距 */
             border-top: 1px solid var(--border-light);
             display: flex;
             justify-content: space-between;
@@ -136,8 +136,8 @@
 
         /* 段落样式 */
         p, .text {
-            /* 增加段落间距，提升呼吸感 */
-            margin: 1.3em 0;
+            /* 缩小段落间距 */
+            margin: 0.4em 0;
             text-align: justify;
         }
 
@@ -152,61 +152,57 @@
             font-weight: bold;
         }
 
-        /* H1: 刊物/文件最高标题（优化尺寸，添加主色调） */
+        /* H1: 刊物/文件最高标题（缩小尺寸，去掉下划线） */
         h1 {
-            font-size: 1.8em;  /* 从2.2em降低，避免过大 */
-            font-weight: 900;      /* 最粗 */
-            margin-top: 2.0em;     /* 顶部间距最大 */
-            margin-bottom: 0.6em;
-            text-align: center;    /* 居中常用于最高级标题 */
-            color: var(--primary); /* 学术蓝主色调 */
-            border-bottom: 3px solid var(--primary-light);
-            padding-bottom: 0.3em;
+            font-size: 1.3em;      /* 缩小字体 */
+            font-weight: 700;      /* 粗体 */
+            margin-top: 0.8em;     /* 缩小间距 */
+            margin-bottom: 0.3em;
+            text-align: center;
+            color: var(--primary);
         }
 
-        /* H2: 文章主标题/主要章节 (添加主色调) */
+        /* H2: 文章主标题/主要章节（缩小尺寸，去掉下划线） */
         h2 {
-            font-size: 1.75em;
-            font-weight: 700;      /* 粗体 */
-            margin-top: 1.8em;
-            margin-bottom: 0.5em;
-            color: var(--primary); /* 主色调 */
-            border-bottom: 2px solid var(--border-normal);
-            padding-bottom: 0.2em;
+            font-size: 1.2em;      /* 缩小字体 */
+            font-weight: 700;
+            margin-top: 0.7em;     /* 缩小间距 */
+            margin-bottom: 0.3em;
+            color: var(--primary);
         }
 
         /* H3: 小节标题 */
         h3 {
-            font-size: 1.4em;
-            font-weight: 600;      /* 半粗体 */
-            margin-top: 1.5em;
-            margin-bottom: 0.4em;
+            font-size: 1.1em;      /* 缩小字体 */
+            font-weight: 600;
+            margin-top: 0.6em;     /* 缩小间距 */
+            margin-bottom: 0.2em;
             color: var(--text-dark);
         }
 
-        /* H4: 次级小节标题 (中等粗细、略大于正文) */
+        /* H4: 次级小节标题 */
         h4 {
-            font-size: 1.15em;
-            font-weight: 500;      /* 中等粗细 */
-            margin-top: 1.3em;
-            margin-bottom: 0.3em;
+            font-size: 1.05em;     /* 缩小字体 */
+            font-weight: 500;
+            margin-top: 0.5em;     /* 缩小间距 */
+            margin-bottom: 0.2em;
         }
 
-        /* H5: 强调段落/项目列表标题 (与正文同大，但使用颜色/斜体/粗细区分) */
+        /* H5: 强调段落/项目列表标题 */
         h5 {
             font-size: 1.0em;
             font-weight: 600;
             font-style: italic;
-            margin-top: 1em;
-            color: #555; /* 颜色略深 */
+            margin-top: 0.4em;     /* 缩小间距 */
+            color: #555;
         }
 
-        /* H6: 注释/来源/图片说明 (略小，使用柔和颜色弱化) */
+        /* H6: 注释/来源/图片说明 */
         h6 {
             font-size: 0.9em;
             font-weight: 400;
-            color: #777;           /* 颜色更浅 */
-            margin-top: 0.8em;
+            color: #777;
+            margin-top: 0.4em;     /* 缩小间距 */
             text-align: right;
         }
 
@@ -216,7 +212,7 @@
         /* 图片容器 */
         .image {
             text-align: center;
-            margin: 2em 0; /* 增大间距，使图片与正文分隔清晰 */
+            margin: 0.8em 0; /* 缩小间距 */
             page-break-inside: avoid;
         }
 
@@ -224,25 +220,91 @@
             max-width: 100%;
             height: auto;
             display: block;
-            margin: 1.5em auto; /* 图片上下间距略大 */
-            border: none; /* 移除边框 */
-            border-radius: 4px; /* 柔化图片边缘 */
-            padding: 0; /* 移除内边距 */
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* 现代阴影效果 */
+            margin: 0.5em auto; /* 缩小图片间距 */
+            border: none;
+            border-radius: 4px;
+            padding: 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         .image-caption {
-            margin-top: 10px;
+            margin-top: 5px;   /* 缩小间距 */
             font-size: 0.9em;
-            color: #777; /* 与 H6 类似的弱化颜色 */
+            color: #777;
+            font-style: italic;
+        }
+
+        /* ================================================================= */
+        /* 图片组样式 - 智能布局 */
+        /* ================================================================= */
+        .image-group {
+            margin: 0.8em 0;
+            page-break-inside: avoid;
+        }
+
+        /* 窄长图片横向排列 */
+        .image-group.narrow_row {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-start;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+
+        .image-group-item {
+            flex: 0 1 auto;
+            text-align: center;
+        }
+
+        /* 根据图片组中的图片数量调整宽度 */
+        .image-group.narrow_row:has(.image-group-item:nth-child(2):last-child) .image-group-item {
+            max-width: 48%;  /* 2张图片 */
+        }
+
+        .image-group.narrow_row:has(.image-group-item:nth-child(3):last-child) .image-group-item {
+            max-width: 31%;  /* 3张图片 */
+        }
+
+        .image-group.narrow_row:has(.image-group-item:nth-child(4):last-child) .image-group-item {
+            max-width: 23%;  /* 4张图片 */
+        }
+
+        /* 兼容不支持:has的浏览器 */
+        @supports not (selector(:has(*))) {
+            .image-group-item {
+                max-width: 24%;
+            }
+        }
+
+        .image-group-item img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .image-group-item .image-caption {
+            margin-top: 5px;
+            font-size: 0.85em;
+            color: #777;
             font-style: italic;
         }
 
         /* 表格 */
         .table-container {
-            margin: 20px 0;
+            margin: 0.6em 0;  /* 缩小间距 */
             overflow-x: auto;
             page-break-inside: avoid;
+        }
+
+        .table-caption {
+            margin-bottom: 5px;  /* 缩小间距 */
+            font-size: 0.9em;
+            color: var(--text-dark);
+            font-weight: 600;
+            text-align: center;
         }
 
         table {
@@ -268,7 +330,69 @@
             background-color: rgba(59, 130, 246, 0.05); /* 淡蓝色悬停效果 */
         }
 
-        /* 打印样式 - 优化PDF生成效果 */
+        /* 列表样式 */
+        ul, ol {
+            margin: 0.5em 0;  /* 缩小间距 */
+            padding-left: 2em;
+            line-height: 1.6;
+        }
+
+        ul li, ol li {
+            margin: 0.3em 0;  /* 缩小间距 */
+        }
+
+        /* 脚注样式 */
+        .page-footnote {
+            margin: 0.5em 0;  /* 缩小间距 */
+            padding: 0.6em 0.8em;  /* 缩小内边距 */
+            background-color: var(--bg-code);
+            border-left: 3px solid var(--accent);
+            font-size: 0.9em;
+            color: var(--text-normal);
+        }
+
+        /* 参考文献样式 */
+        .ref-text {
+            margin: 0.4em 0;  /* 缩小间距 */
+            padding-left: 1.5em;
+            text-indent: -1.5em;
+            font-size: 0.9em;
+            color: var(--text-muted);
+        }
+
+        /* 代码块样式 */
+        .code-container {
+            margin: 0.6em 0;  /* 缩小间距 */
+            page-break-inside: avoid;
+        }
+
+        .code-caption {
+            margin-bottom: 3px;  /* 缩小间距 */
+            font-size: 0.9em;
+            color: var(--text-dark);
+            font-weight: 600;
+        }
+
+        pre {
+            background-color: var(--bg-code);
+            border: 1px solid var(--border-normal);
+            border-radius: 4px;
+            padding: 1em;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.85em;
+            line-height: 1.4;
+        }
+
+        code {
+            background-color: var(--bg-code);
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        /* 打印样式 - 优化PDF生成效果（横向布局） */
         @media print {
             body {
                 background: white;
@@ -276,31 +400,32 @@
 
             .page {
                 margin: 0;
+                padding: 0;  /* 确保无外层padding */
                 box-shadow: none;
                 /* 每个源PDF页结束后分页 */
                 page-break-after: always;
                 /* 允许内容在源PDF页内部跨打印页 */
-                min-height: 29.7cm;
+                min-height: 21cm;  /* A4横向高度 */
                 /* 确保flexbox布局生效 */
                 display: flex;
                 flex-direction: column;
             }
 
             .header {
-                padding: 0.8cm 2cm 0.5cm 2cm;
+                padding: 0.6cm 1.5cm 0.4cm 1.5cm;  /* 保持一致 */
                 /* 避免页眉跨页断裂 */
                 page-break-inside: avoid;
                 page-break-after: avoid;
             }
 
             .page-content {
-                padding: 1cm 2cm;
+                padding: 0.8cm 1.5cm;  /* 保持一致，最大化内容 */
                 /* 内容允许自然流动跨页 */
                 flex: 1; /* 确保内容区域占据所有可用空间 */
             }
 
             .footer-container {
-                padding: 0.5cm 2cm 0.8cm 2cm;
+                padding: 0.4cm 1.5cm 0.6cm 1.5cm;  /* 保持一致 */
                 /* 避免页脚跨页断裂 */
                 page-break-inside: avoid;
                 page-break-before: avoid;
@@ -310,12 +435,133 @@
 
             @page {
                 margin: 0;
-                size: A4;
+                size: A4 landscape;  /* 横向A4 */
             }
 
             /* 打印时移除表格悬停效果 */
             table tr:hover {
                 background-color: transparent;
+            }
+
+            /* ===== 修复打印时内容缺失问题 ===== */
+
+            /* 1. 表格容器 - 禁用滚动条 */
+            .table-container {
+                overflow: visible !important;
+                width: 100%;
+                max-width: 100%;
+            }
+
+            /* 2. 表格 - 优化尺寸 */
+            table {
+                width: 100%;
+                font-size: 0.8em;  /* 缩小字体以适应页面 */
+            }
+
+            table th, table td {
+                padding: 8px 10px;  /* 减少内边距 */
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+            }
+
+            /* 3. 代码块 - 启用自动换行 */
+            pre {
+                overflow: visible !important;
+                white-space: pre-wrap !important;  /* 长行自动换行 */
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+                page-break-inside: avoid;
+                font-size: 0.75em;  /* 缩小字体 */
+            }
+
+            code {
+                background-color: transparent;
+                padding: 0;
+                word-wrap: break-word;
+            }
+
+            /* 4. 列表 - 强制换行 */
+            ul, ol {
+                padding-left: 1.5em;  /* 减少缩进 */
+            }
+
+            ul li, ol li {
+                margin: 0.4em 0;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+                hyphens: auto;  /* 启用连字符换行 */
+            }
+
+            /* 5. 参考文献 - 特殊处理 */
+            .ref-text {
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+                padding-left: 1.2em;
+                text-indent: -1.2em;
+                hyphens: auto;
+            }
+
+            /* 6. 脚注 - 强制换行 */
+            .page-footnote {
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+            }
+
+            /* 7. 表格内图片 - 限制宽度 */
+            .table-container img {
+                max-width: 90% !important;
+                height: auto !important;
+                display: block;
+                margin: 0 auto;
+            }
+
+            /* 8. 普通图片 - 保守限制 */
+            .image img {
+                max-width: 95%;
+                page-break-inside: avoid;
+            }
+
+            /* 9. 图片组 - 打印优化 */
+            .image-group.narrow_row {
+                display: flex;
+                gap: 0.5em;
+                page-break-inside: avoid;
+                justify-content: space-around;
+            }
+
+            .image-group-item {
+                page-break-inside: avoid;
+                flex: 0 1 auto;
+            }
+
+            /* 根据图片数量调整宽度 */
+            .image-group.narrow_row:has(.image-group-item:nth-child(2):last-child) .image-group-item {
+                max-width: 48%;
+            }
+
+            .image-group.narrow_row:has(.image-group-item:nth-child(3):last-child) .image-group-item {
+                max-width: 31%;
+            }
+
+            .image-group.narrow_row:has(.image-group-item:nth-child(4):last-child) .image-group-item {
+                max-width: 23%;
+            }
+
+            @supports not (selector(:has(*))) {
+                .image-group-item {
+                    max-width: 24%;
+                }
+            }
+
+            .image-group-item img {
+                max-width: 100%;
+                height: auto;
+            }
+
+            /* 10. 页面内容 - 确保可见 */
+            .page-content {
+                width: 100%;
+                overflow: visible;
             }
         }
     </style>
@@ -327,7 +573,8 @@
         <div class="header">
             {% for item in items %}
                 {% if item.type == 'header' %}
-                    {{ item.text }}
+                    {% set header_text = item.text_zh if language == 'zh' else item.text %}
+                    {{ header_text }}
                 {% endif %}
             {% endfor %}
         </div>
@@ -353,24 +600,108 @@
                         <p class="text">{{ text_content }}</p>
                     {% endif %}
 
+                {% elif item.type == 'page_footnote' %}
+                    {% set footnote_text = item.text_zh if language == 'zh' else item.text %}
+                    <div class="page-footnote">{{ footnote_text }}</div>
+
+                {% elif item.type == 'list' %}
+                    {% if item.sub_type == 'ref_text' %}
+                        <!-- 参考文献列表使用有序列表 -->
+                        <ol>
+                            {% if language == 'zh' and item.list_items_zh %}
+                                {% for list_item in item.list_items_zh %}
+                                    <li>{{ list_item }}</li>
+                                {% endfor %}
+                            {% else %}
+                                {% for list_item in item.list_items %}
+                                    <li>{{ list_item }}</li>
+                                {% endfor %}
+                            {% endif %}
+                        </ol>
+                    {% else %}
+                        <!-- 普通列表使用无序列表 -->
+                        <ul>
+                            {% if language == 'zh' and item.list_items_zh %}
+                                {% for list_item in item.list_items_zh %}
+                                    <li>{{ list_item }}</li>
+                                {% endfor %}
+                            {% else %}
+                                {% for list_item in item.list_items %}
+                                    <li>{{ list_item }}</li>
+                                {% endfor %}
+                            {% endif %}
+                        </ul>
+                    {% endif %}
+
+                {% elif item.type == 'table' %}
+                    <div class="table-container">
+                        {% if item.table_caption %}
+                            {% set caption = item.table_caption_zh if language == 'zh' else (item.table_caption|join(' ') if item.table_caption is iterable and item.table_caption is not string else item.table_caption) %}
+                            <div class="table-caption">{{ caption }}</div>
+                        {% endif %}
+                        {% if item.img_path %}
+                            <!-- 表格以图片形式显示，修复file://路径 -->
+                            {% if item.img_path_absolute %}
+                                <img src="file:///{{ item.img_path_absolute|replace('\\', '/') }}" alt="Table" style="max-width: 100%; height: auto;" onerror="this.src='{{ item.img_path }}'; this.onerror=null;">
+                            {% else %}
+                                <img src="{{ item.img_path }}" alt="Table" style="max-width: 100%; height: auto;">
+                            {% endif %}
+                        {% elif item.table_body_zh and language == 'zh' %}
+                            {{ item.table_body_zh|safe }}
+                        {% elif item.table_body %}
+                            {{ item.table_body|safe }}
+                        {% endif %}
+                    </div>
+
                 {% elif item.type == 'image' %}
                     <div class="image">
                         {% if item.img_path_absolute %}
-                            <!-- 使用绝对路径用于 PDF/DOCX 转换 -->
-                            <img src="file:///{{ item.img_path_absolute }}" alt="Image" onerror="this.src='{{ item.img_path }}'; this.onerror=function(){this.style.display='none'; this.parentElement.innerHTML+='<p style=color:red>[图片加载失败]</p>'}">
+                            <!-- 使用绝对路径用于 PDF/DOCX 转换，正确处理file://协议 -->
+                            <img src="file:///{{ item.img_path_absolute|replace('\\', '/') }}" alt="Image" onerror="console.error('图片加载失败:', this.src); this.src='{{ item.img_path }}'; this.onerror=function(){this.style.display='none'; this.parentElement.innerHTML+='<p style=color:red>[图片加载失败]</p>'}">
                         {% elif item.img_path %}
                             <!-- 备用：相对路径用于纯 HTML 查看 -->
                             <img src="{{ item.img_path }}" alt="Image" onerror="this.style.display='none'; this.parentElement.innerHTML+='<p style=color:red>[图片加载失败: {{ item.img_path }}]</p>'">
                         {% endif %}
                         {% if item.image_caption %}
-                            {% set caption = item.caption_zh if language == 'zh' else item.image_caption|join(' ') %}
+                            {% set caption = item.image_caption_zh if language == 'zh' else (item.image_caption|join(' ') if item.image_caption is iterable and item.image_caption is not string else item.image_caption) %}
                             <p class="image-caption">{{ caption }}</p>
+                        {% endif %}
+                        {% if item.image_footnote %}
+                            {% set footnote = item.image_footnote_zh if language == 'zh' else (item.image_footnote|join(' ') if item.image_footnote is iterable and item.image_footnote is not string else item.image_footnote) %}
+                            {% if footnote %}
+                                <p class="image-caption" style="font-size: 0.85em; margin-top: 5px;">{{ footnote }}</p>
+                            {% endif %}
                         {% endif %}
                     </div>
 
-                {% elif item.type == 'table' %}
-                    <div class="table-container">
-                        {{ item.table_body|safe }}
+                {% elif item.type == 'image_group' %}
+                    <!-- 图片组：多张窄长图片横向排列 -->
+                    <div class="image-group {{ item.layout_type }}">
+                        {% for img in item.images %}
+                            <div class="image-group-item">
+                                {% if img.img_path_absolute %}
+                                    <img src="file:///{{ img.img_path_absolute|replace('\\', '/') }}" alt="Image" onerror="this.src='{{ img.img_path }}';">
+                                {% elif img.img_path %}
+                                    <img src="{{ img.img_path }}" alt="Image">
+                                {% endif %}
+                                {% if img.image_caption %}
+                                    {% set caption = img.image_caption_zh if language == 'zh' else (img.image_caption|join(' ') if img.image_caption is iterable and img.image_caption is not string else img.image_caption) %}
+                                    <p class="image-caption">{{ caption }}</p>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                {% elif item.type == 'ref_text' %}
+                    <div class="ref-text">{{ item.text }}</div>
+
+                {% elif item.type == 'code' %}
+                    <div class="code-container">
+                        {% if item.code_caption %}
+                            {% set caption = item.code_caption|join(' ') if item.code_caption is iterable and item.code_caption is not string else item.code_caption %}
+                            <div class="code-caption">{{ caption }}</div>
+                        {% endif %}
+                        <pre><code>{{ item.code_body }}</code></pre>
                     </div>
                 {% endif %}
             {% endfor %}

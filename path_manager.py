@@ -23,6 +23,7 @@ class PathManager:
     def scan_input_files(self) -> list:
         """
         递归扫描 input 文件夹下的所有 PDF 文件
+        自动过滤临时文件和压缩文件
 
         Returns:
             [(相对路径, 绝对路径), ...] 例如: [('project1/doc.pdf', 'input/project1/doc.pdf'), ...]
@@ -40,11 +41,27 @@ class PathManager:
             self.logger.warning(f"输入文件夹中没有 PDF 文件: {input_base}")
             return []
 
-        # 计算相对路径
+        # 计算相对路径，并过滤临时文件
         file_list = []
+        filtered_count = 0
+
         for pdf_file in pdf_files:
+            file_name = pdf_file.name
+
+            # 过滤条件：跳过临时文件和压缩文件
+            if any([
+                '_compressed.pdf' in file_name,  # 旧的压缩文件
+                '_part' in file_name and file_name.endswith('.pdf'),  # 分割部分
+                'temp_splits' in str(pdf_file),  # temp_splits 目录下的文件
+            ]):
+                filtered_count += 1
+                continue
+
             relative_path = pdf_file.relative_to(input_base)
             file_list.append((str(relative_path), str(pdf_file)))
+
+        if filtered_count > 0:
+            self.logger.info(f"已过滤 {filtered_count} 个临时/压缩文件")
 
         self.logger.info(f"扫描到 {len(file_list)} 个 PDF 文件")
         return file_list

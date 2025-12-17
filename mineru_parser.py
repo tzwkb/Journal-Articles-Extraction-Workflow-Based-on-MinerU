@@ -6,7 +6,6 @@ MinerU Result Parser
 import os
 import json
 import zipfile
-import shutil
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
@@ -14,7 +13,6 @@ from dataclasses import dataclass, asdict
 # 导入现有工具
 try:
     from logger import Logger
-    from json_utils import parse_json_response, validate_json_structure
 except ImportError:
     class Logger:
         @staticmethod
@@ -26,8 +24,12 @@ except ImportError:
         @staticmethod
         def success(msg): print(f"[SUCCESS] {msg}")
 
-    def parse_json_response(text): return json.loads(text)
-    def validate_json_structure(data, schema): return True
+# 辅助函数
+def parse_json_response(text):
+    return json.loads(text)
+
+def validate_json_structure(data, schema):
+    return True
 
 
 @dataclass
@@ -99,6 +101,16 @@ class MinerUParser:
         self.logger.info(f"正在解压: {zip_path}")
 
         try:
+            # 先验证是否为有效的ZIP文件
+            if not zipfile.is_zipfile(zip_path):
+                # 检查文件大小
+                file_size = Path(zip_path).stat().st_size
+                error_msg = f"ZIP validation failed: File is not a valid ZIP archive (size: {file_size} bytes)"
+                self.logger.error(error_msg)
+                self.logger.error("  可能原因: 下载未完成、网络中断、或MinerU生成失败")
+                self.logger.error(f"  建议: 删除该文件并重新处理: {zip_path}")
+                raise Exception(error_msg)
+
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                 # 获取zip中的文件列表
                 file_list = zip_ref.namelist()
@@ -110,8 +122,16 @@ class MinerUParser:
             self.logger.success(f"解压完成: {extract_to}")
             return str(extract_to)
 
+        except zipfile.BadZipFile as e:
+            error_msg = f"ZIP extraction failed: BadZipFile - {str(e)}"
+            self.logger.error(error_msg)
+            self.logger.error("  ZIP文件已损坏，无法解压")
+            raise Exception(error_msg)
         except Exception as e:
-            raise Exception(f"解压失败: {str(e)}")
+            # Use English to avoid encoding issues
+            error_msg = f"ZIP extraction failed: {type(e).__name__} - {str(e)}"
+            self.logger.error(error_msg)
+            raise Exception(error_msg)
 
     def analyze_directory_structure(self, dir_path: str) -> Dict[str, Any]:
         """
@@ -184,10 +204,44 @@ class MinerUParser:
 
         Returns:
             解析后的JSON对象
+
+        Raises:
+            Exception: JSON解析失败时抛出异常
         """
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-            return parse_json_response(content)
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            # 尝试解析JSON
+            try:
+                return parse_json_response(content)
+            except json.JSONDecodeError as e:
+                # JSON解析失败，提供详细错误信息
+                error_msg = f"JSON parse error: {str(e)}"
+                self.logger.error(f"JSON解析失败: {file_path}")
+                self.logger.error(f"  错误: {str(e)}")
+
+                # 显示出错位置的上下文（前后50个字符）
+                if hasattr(e, 'pos') and e.pos is not None:
+                    start = max(0, e.pos - 50)
+                    end = min(len(content), e.pos + 50)
+                    context = content[start:end]
+                    self.logger.error(f"  出错位置上下文: ...{repr(context)}...")
+
+                self.logger.error("  可能原因: MinerU生成的JSON格式不正确")
+                self.logger.error(f"  建议: 检查JSON文件或删除ZIP文件重新处理")
+                raise Exception(error_msg)
+
+        except FileNotFoundError:
+            error_msg = f"JSON file not found: {file_path}"
+            self.logger.error(error_msg)
+            raise Exception(error_msg)
+        except Exception as e:
+            if "JSON parse error" in str(e):
+                raise
+            error_msg = f"Failed to read JSON: {type(e).__name__} - {str(e)}"
+            self.logger.error(error_msg)
+            raise Exception(error_msg)
 
     def read_html(self, file_path: str) -> str:
         """
@@ -274,11 +328,18 @@ class MinerUParser:
                 json_file = structure['json_files'][0]
 
             json_path = Path(extract_dir) / json_file
-            parsed.json_content = self.read_json(json_path)
-            self.logger.success(f"✓ 读取JSON: {json_file}")
 
-            # 尝试提取元数据
-            self._extract_metadata(parsed)
+            try:
+                parsed.json_content = self.read_json(json_path)
+                self.logger.success(f"✓ 读取JSON: {json_file}")
+
+                # 尝试提取元数据
+                self._extract_metadata(parsed)
+            except Exception as e:
+                # JSON读取失败不中断整个流程，只记录警告
+                self.logger.warning(f"⚠ JSON读取失败，将跳过JSON相关功能: {str(e)}")
+                self.logger.warning("  程序将继续处理其他内容（Markdown、图片等）")
+                parsed.json_content = None
 
         # 6. 收集图片
         if structure['image_files']:
